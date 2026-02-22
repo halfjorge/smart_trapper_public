@@ -9,3 +9,16 @@ target/
 
 # Windows junk
 Thumbs.db
+
+# Generated / build artifacts
+**/*.pdb
+**/*.d
+**/*.zip
+
+# Generated job outputs (if these are export artifacts)
+job.json
+**/job.json
+**/masks/
+**/traps/
+**/traps.json
+**/*log*.txt
