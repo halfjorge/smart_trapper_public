@@ -15,6 +15,27 @@ Thumbs.db
 **/*.d
 **/*.zip
 
+# Rust build output
+**/target/
+**/*.pdb
+**/*.d
+
+# Generated run artifacts (export/job output)
+**/masks/
+**/traps/
+**/debug/
+**/job.json
+**/traps.json
+**/*log*.txt
+**/*.log
+**/errorlevel.txt
+**/run_trapper.bat
+
+# OS/editor junk
+Thumbs.db
+.DS_Store
+.vscode/
+
 # Generated job outputs (if these are export artifacts)
 job.json
 **/job.json
