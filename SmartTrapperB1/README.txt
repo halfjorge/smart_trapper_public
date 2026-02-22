@@ -1,51 +1,174 @@
-SmartTrapper B1 (Hybrid export → external compute → reimport)
+Smart Trapper B1
 
-WHAT THIS DOES
-1) Photoshop exports each separation as a mask PNG (white/transparent) + strict job.json metadata.
-2) Rust engine computes traps:
-   Trap(A over B) = (dilate(A, trapPx) ∩ B) − A
-   If SOURCE A is MULTIPLY and KEY exists, trap also intersects KEY.
-3) Photoshop imports computed trap masks back into the PSD as TRAP__A_over_B layers,
-   inside the SOURCE group (COLOR__<A>), matching SOURCE blend/opacity/fillOpacity.
+Version: v1.0 (Baseline Stable)
 
-ASSUMPTIONS (same as your in-PSD script)
-- Top layer is KEY (untouched)
-- Bottom layer is PAPER (untouched)
-- Color layers are visible ArtLayers between them
+Smart Trapper B1 is a Photoshop + Rust hybrid trapping system designed for plate-based print workflows.
 
-FOLDER STRUCTURE
-ps/
-  export_printed_shapes.jsx
-  import_traps.jsx
-engine/
-  Cargo.toml
-  src/main.rs
+This version represents a known stable baseline before experimental thin-feature protection and debug overlays were introduced.
+🔧 System Overview
 
-RUN STEPS
-A) Photoshop export
-   File > Scripts > Browse... -> ps/export_printed_shapes.jsx
-   Choose an output folder, e.g. C:\temp\byrne_job
-   It will create:
-     masks/*.png
-     job.json
+Smart Trapper consists of three main parts:
 
-B) Build + run Rust engine
-   Open Command Prompt / PowerShell:
+    Photoshop Export Script
 
-   cd SmartTrapperB1\engine
-   cargo build --release
+        Phase2_Export.jsx
 
-   Then run:
-   target\release\smart_trapper_b1.exe "C:\temp\byrne_job" 5
+        Exports layer masks and generates job.json
 
-   It will create:
-     traps/*.png
-     traps.json
+    Rust Trapping Engine
 
-C) Photoshop import
-   File > Scripts > Browse... -> ps/import_traps.jsx
-   Select the same job folder (contains job.json + traps.json)
+        SmartTrapperB1/engine/src/main.rs
 
-NOTES
-- Trap PNGs are white where trap exists, transparent elsewhere.
-- Importer fills trap selections with SOURCE ink color and matches SOURCE appearance.
+        Performs spread-only trap generation
+
+        Outputs traps.json and /traps/*.png
+
+    Photoshop Import Script
+
+        Phase2_Import.jsx
+
+        Imports generated trap masks
+
+        Creates trap layers inside proper color groups
+
+    Controller Script
+
+        Phase2_Run_All.jsx
+
+        Runs Export → Rust → Import automatically
+
+📁 Folder Structure (v1.0 Baseline)
+
+SmartTrapperB1/
+│
+├── Phase2_Run_All.jsx
+├── Phase2_Export.jsx
+├── Phase2_Import.jsx
+│
+├── SmartTrapperB1/
+│   ├── engine/
+│   │   ├── Cargo.toml
+│   │   ├── Cargo.lock
+│   │   ├── src/
+│   │   │   └── main.rs
+│   │   └── target/      (ignored in git)
+│   │
+│   └── README.txt
+│
+└── .gitignore
+
+🖨 Workflow
+Step 1 — Open PSD
+
+    Top layer = KEY
+
+    Bottom layer = PAPER
+
+    Color plates between them
+
+    Layers must be visible
+
+Step 2 — Run Controller
+
+Run:
+
+Phase2_Run_All.jsx
+
+The script will:
+
+    Detect blend/transparency layers
+
+    Prompt for trap width
+
+    Export masks
+
+    Run Rust engine
+
+    Import traps automatically
+
+⚙ Engine Build
+
+From:
+
+SmartTrapperB1/engine
+
+Run:
+
+cargo build --release
+
+Executable will be generated at:
+
+target/release/smart_trapper_b1.exe
+
+The controller script expects this path unless modified.
+🧠 Trapping Logic (v1.0 Baseline)
+
+This version includes:
+
+    Spread-only traps (lower plate spreads under upper plate)
+
+    Paper-island removal
+
+    8-neighborhood boundary detection
+
+    No thin-feature interior protection
+
+    No debug overlay generation
+
+    No composite debug exports
+
+This is the stable pre-experimental implementation.
+🚫 What Is NOT Included in v1.0
+
+    Thin feature preservation logic
+
+    Thick interior protection
+
+    Debug overlay PNG exports
+
+    Composite boundary debug masks
+
+    Advanced tolerance overrides
+
+Those were experimental additions made after this baseline.
+🔄 Restoring This Version
+
+If future experiments break the system:
+
+git checkout v1.0
+
+Or restore from the tagged commit representing:
+
+    "Stable clean version (no target folder)"
+
+🛡 Recommended Git Ignore
+
+/SmartTrapperB1/engine/target/
+/*.log
+/traps/
+/debug/
+/*.psd
+
+💡 Notes
+
+    Rust and Photoshop communicate via job.json, traps.json, and PNG masks.
+
+    PSD document itself is never modified during export.
+
+    Auto-knockout behavior is controlled in Phase2_Export.jsx.
+
+📌 Authoring Notes
+
+This baseline was established after debugging:
+
+    Path execution issues
+
+    .exe location inconsistencies
+
+    Composite blend detection behavior
+
+    Photoshop selection alignment
+
+    Rust mask size mismatches
+
+This commit represents a known working system.
