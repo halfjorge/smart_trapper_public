@@ -1,0 +1,11 @@
+# Rust build output
+target/
+
+# Debug logs
+*.log
+
+# Photoshop export job folders
+*_20*
+
+# Windows junk
+Thumbs.db
