@@ -35,6 +35,7 @@ Thumbs.db
 Thumbs.db
 .DS_Store
 .vscode/
+.vs/
 
 # Generated job outputs (if these are export artifacts)
 job.json
