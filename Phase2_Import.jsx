@@ -1,4 +1,4 @@
-#target photoshop
+﻿#target photoshop
 app.bringToFront();
 
 (function () {
@@ -10,6 +10,7 @@ app.bringToFront();
   // DEBUG LOG
   // ======================
   var LOG = [];
+  var DEBUG_DUMP_ACTIVE_LAYER = false;
   function log(s){ LOG.push(String(s)); }
   function flushLog(folder){
     try{
@@ -429,6 +430,136 @@ app.bringToFront();
     try { g.move(doc.layers[0], ElementPlacement.PLACEBEFORE); } catch(e6){}
   }
 
+  function dumpActiveLayerInfo(){
+    var layer = app.activeDocument.activeLayer;
+    var ref = new ActionReference();
+    ref.putEnumerated(cTID("Lyr "), cTID("Ordn"), cTID("Trgt"));
+    var layerDesc = executeActionGet(ref);
+
+    function typeIdName(id){
+      try { return typeIDToStringID(id); } catch(e1){}
+      try { return typeIDToCharID(id); } catch(e2){}
+      return String(id);
+    }
+
+    function keyName(id){
+      return typeIdName(id);
+    }
+
+    function readRGBFromDesc(colorDesc){
+      var r = null, g = null, b = null;
+
+      try{
+        if(colorDesc.hasKey(sTID("red"))) r = Math.round(colorDesc.getDouble(sTID("red")));
+      }catch(e1){}
+      try{
+        if(colorDesc.hasKey(sTID("green"))) g = Math.round(colorDesc.getDouble(sTID("green")));
+      }catch(e2){}
+      try{
+        if(colorDesc.hasKey(sTID("blue"))) b = Math.round(colorDesc.getDouble(sTID("blue")));
+      }catch(e3){}
+
+      try{
+        if(r === null && colorDesc.hasKey(cTID("Rd  "))) r = Math.round(colorDesc.getDouble(cTID("Rd  ")));
+      }catch(e4){}
+      try{
+        if(g === null && colorDesc.hasKey(cTID("Grn "))) g = Math.round(colorDesc.getDouble(cTID("Grn ")));
+      }catch(e5){}
+      try{
+        if(b === null && colorDesc.hasKey(cTID("Bl  "))) b = Math.round(colorDesc.getDouble(cTID("Bl  ")));
+      }catch(e6){}
+
+      if(r === null || g === null || b === null) return null;
+      return { r:r, g:g, b:b };
+    }
+
+    var fillOpacityStr = "n/a";
+    try { fillOpacityStr = String(layer.fillOpacity); } catch(eFill) {}
+
+    var kindStr = "n/a";
+    try { kindStr = String(layer.kind); } catch(eKind) {}
+
+    log("=== ACTIVE LAYER INFO ===");
+    log("Name: " + layer.name);
+    log("DOM: typename=" + layer.typename + " kind=" + kindStr);
+    log("Visible: " + layer.visible + " Opacity: " + layer.opacity + " FillOpacity: " + fillOpacityStr);
+    log("BlendMode: " + layer.blendMode);
+
+    var idContentLayer = sTID("contentLayer");
+    var idAdjustment = sTID("adjustment");
+    var hasContentLayer = layerDesc.hasKey(idContentLayer);
+    var hasAdjustment = layerDesc.hasKey(idAdjustment);
+
+    log("Descriptor has contentLayer: " + hasContentLayer);
+    log("Descriptor has adjustment: " + hasAdjustment);
+
+    if(hasAdjustment){
+      try{
+        var adjList = layerDesc.getList(idAdjustment);
+        if(adjList.count === 0){
+          log("Adjustment items: (none)");
+        } else {
+          log("Adjustment items:");
+          for(var i=0; i<adjList.count; i++){
+            var classId = null;
+            var name = "unknown";
+            try { classId = adjList.getClass(i); } catch(eA1){}
+            if(classId === null){
+              try { classId = adjList.getObjectType(i); } catch(eA2){}
+            }
+            if(classId !== null){
+              name = keyName(classId);
+            }
+            log("  [" + i + "] type=" + name + " id=" + classId);
+          }
+        }
+      }catch(eAdj){
+        log("Adjustment items read error: " + eAdj);
+      }
+    }
+
+    if(hasContentLayer){
+      try{
+        var contentDesc = layerDesc.getObjectValue(idContentLayer);
+        var idType = sTID("type");
+        var idColor = sTID("color");
+        var solidTypeName = "";
+        var typeDesc = null;
+
+        if(contentDesc.hasKey(idType)){
+          try {
+            solidTypeName = keyName(contentDesc.getObjectType(idType));
+          } catch(eT1) {}
+          try {
+            typeDesc = contentDesc.getObjectValue(idType);
+          } catch(eT2) {}
+        }
+
+        if(typeDesc !== null && solidTypeName === "solidColorLayer"){
+          var colorDesc = null;
+          try {
+            if(typeDesc.hasKey(idColor)) colorDesc = typeDesc.getObjectValue(idColor);
+          } catch(eC1) {}
+          if(colorDesc === null){
+            try {
+              if(typeDesc.hasKey(cTID("Clr "))) colorDesc = typeDesc.getObjectValue(cTID("Clr "));
+            } catch(eC2) {}
+          }
+
+          if(colorDesc !== null){
+            var rgb = readRGBFromDesc(colorDesc);
+            if(rgb){
+              log("SolidFillRGB: R=" + rgb.r + " G=" + rgb.g + " B=" + rgb.b);
+            }
+          }
+        }
+      }catch(eContent){
+        log("SolidFillRGB read error: " + eContent);
+      }
+    }
+
+    log("=== END ACTIVE LAYER INFO ===");
+  }
   // ======================
   // MAIN
   // ======================
@@ -454,6 +585,13 @@ if ($.global.PHASE2_IMPORT_FOLDER) {
 if(!folder) return;
 
     log("Folder: " + folder.fsName);
+
+    if(DEBUG_DUMP_ACTIVE_LAYER){
+      dumpActiveLayerInfo();
+      flushLog(folder);
+      alert("Dump complete. See import_debug_log.txt");
+      return;
+    }
 
     var trapsObj = parseJSON(readTextFile(folder.fsName + "/traps.json"));
     if(!trapsObj || !trapsObj.traps || trapsObj.traps.length === 0){
@@ -541,7 +679,7 @@ if(!folder) return;
       hostDoc.selection.deselect();
 
       imported++;
-      log("  ✓ Imported: " + trapName + " (in " + sourceGroup.name + ")");
+      log("  âœ“ Imported: " + trapName + " (in " + sourceGroup.name + ")");
     }
 
     log("=== SUMMARY ===");
@@ -565,3 +703,6 @@ if(!folder) return;
   }
 
 })();
+
+
+
