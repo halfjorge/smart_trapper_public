@@ -10,7 +10,8 @@ app.bringToFront();
   // DEBUG LOG
   // ======================
   var LOG = [];
-  var DEBUG_DUMP_ACTIVE_LAYER = false;
+  var DEBUG_DUMP_ACTIVE_LAYER = true;
+  var USER_SELECTED_LAYER = null;
   function log(s){ LOG.push(String(s)); }
   function flushLog(folder){
     try{
@@ -431,10 +432,43 @@ app.bringToFront();
   }
 
   function dumpActiveLayerInfo(){
-    var layer = app.activeDocument.activeLayer;
-    var ref = new ActionReference();
-    ref.putEnumerated(cTID("Lyr "), cTID("Ordn"), cTID("Trgt"));
-    var layerDesc = executeActionGet(ref);
+    var doc = app.activeDocument;
+    var layer = null;
+    try {
+      layer = USER_SELECTED_LAYER;
+      var _n = layer.name;
+    } catch(eUserLayer) {
+      layer = null;
+    }
+    if(!layer){
+      try { layer = doc.activeLayer; } catch(eActiveLayer) {}
+    }
+    if(!layer){
+      log("Dump target: <none>");
+      log("No valid layer available for dump.");
+      return;
+    }
+
+    var dumpTargetName = "<unnamed>";
+    try { dumpTargetName = layer.name; } catch(eName) {}
+    log("Dump target: " + dumpTargetName);
+
+    var layerDesc = null;
+    try{
+      var refById = new ActionReference();
+      refById.putIdentifier(cTID("Lyr "), layer.id);
+      layerDesc = executeActionGet(refById);
+    }catch(eById){
+      try{
+        var refTarget = new ActionReference();
+        refTarget.putEnumerated(cTID("Lyr "), cTID("Ordn"), cTID("Trgt"));
+        layerDesc = executeActionGet(refTarget);
+      }catch(eTarget){}
+    }
+    if(!layerDesc){
+      log("Unable to read descriptor for dump target.");
+      return;
+    }
 
     function typeIdName(id){
       try { return typeIDToStringID(id); } catch(e1){}
@@ -572,6 +606,7 @@ app.bringToFront();
     }
 
     var hostDoc = app.activeDocument;
+    try { USER_SELECTED_LAYER = hostDoc.activeLayer; } catch(eSel) { USER_SELECTED_LAYER = null; }
 
     // If controller provided folder, use it.
 // Otherwise fall back to manual selection.
